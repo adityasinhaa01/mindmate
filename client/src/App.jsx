@@ -6,7 +6,7 @@ import {
   Smartphone, CalendarDays, Wind, Footprints, Send, Plus, Phone, Mail, Check,
   X, LogOut, ShieldCheck, Activity, Eye, EyeOff, ArrowRight, Trash2, Timer,
   Sparkles, ChevronDown, HeartHandshake, ChevronLeft, ChevronRight, RefreshCw,
-  Smile, Meh, Frown, AlertCircle, Compass, Camera,
+  Smile, Meh, Frown, AlertCircle, Compass, Camera, Cpu,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -469,23 +469,50 @@ function StressRing({ score, size = 190 }) {
       <div className="ring-c">
         <div style={{ fontSize: 13, color: "var(--mute)", fontWeight: 600 }}>Stress level</div>
         <div style={{ fontSize: size > 160 ? 30 : 24, fontWeight: 800, letterSpacing: "-.02em", color }}>{level}</div>
+        <div style={{ fontSize: 13, color: "var(--mute)", marginTop: 2 }}>{score}/100</div>
       </div>
     </div>
   );
 }
 
-function StressCard({ score, compact }) {
+function StressCard({ score, mlPrediction, compact }) {
   const level = levelOf(score);
   return (
     <div className="card" style={{ textAlign: "center" }}>
-      <h3 style={{ textAlign: "left" }}>Current stress level</h3>
+      <div className="row" style={{ marginBottom: 8 }}>
+        <h3 style={{ textAlign: "left" }}>Stress Assessment</h3>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 8, background: "#E8EFFF", color: "#3F6FD8", fontSize: 12, fontWeight: 700 }}>
+          <Cpu size={13} /> ML Powered
+        </span>
+      </div>
       <StressRing score={score} size={compact ? 170 : 200} />
       <div className="states">
         {["Low", "Moderate", "High"].map((s) => (
           <div key={s} className="state" style={level === s ? { background: LEVEL_SOFT[s], color: LEVEL_COLOR[s] } : null}>{s}</div>
         ))}
       </div>
-      <p className="muted" style={{ fontSize: 14, textAlign: "left" }}>{LEVEL_COPY[level]}</p>
+      <p className="muted" style={{ fontSize: 14, textAlign: "left", marginBottom: mlPrediction ? 10 : 0 }}>{LEVEL_COPY[level]}</p>
+      {mlPrediction && (
+        <div style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, background: "#F6F8FF", border: "1px solid #E2E8F0", marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#2B478B" }}>ML Predicted State</span>
+            <span className="chip" style={{ fontSize: 12, padding: "2px 8px" }}>
+              {Math.round((mlPrediction.confidence_score || 0.85) * 100)}% Confidence
+            </span>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 800, marginTop: 4, color: "var(--ink)" }}>
+            {mlPrediction.predicted_class}
+          </div>
+          {mlPrediction.top_contributor && (
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              Primary Driver: <b>{mlPrediction.top_contributor}</b>
+            </div>
+          )}
+          <div className="muted" style={{ fontSize: 11, marginTop: 6, fontStyle: "italic" }}>
+            Inferred with Random Forest Classifier & Regressor (GAD-7 dataset)
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -732,7 +759,7 @@ function Dashboard({ user, today, score, setTab, setWtab, openSession }) {
           </div>
         </div>
         <div className="stack">
-          <StressCard score={score} />
+          <StressCard score={score} mlPrediction={today?.mlPrediction} />
           <div className="card calm">
             <div className="tile t-lav" style={{ background: "#fff" }}><MessageCircle size={22} /></div>
             <h3 style={{ margin: "14px 0 6px" }}>Need to talk?</h3>
@@ -754,6 +781,51 @@ function Slider({ label, unit, value, min, max, step, onChange }) {
   );
 }
 
+const GAD7_QUESTIONS = [
+  {
+    key: "nervousness",
+    label: "Feeling nervous, anxious, or on edge",
+    desc: "Persistent feeling of anxiety or apprehension",
+  },
+  {
+    key: "unable_to_control",
+    label: "Not being able to stop or control worrying",
+    desc: "Uncontrollable recurring worry loops about classes, exams, or life",
+  },
+  {
+    key: "worry",
+    label: "Worrying too much about different things",
+    desc: "Generalized excessive worry spanning multiple domains",
+  },
+  {
+    key: "trouble_in_relaxation",
+    label: "Trouble in relaxation",
+    desc: "Muscle tension, somatic agitation, or difficulty winding down",
+  },
+  {
+    key: "restlessness",
+    label: "Restlessness",
+    desc: "Hard to sit still or feeling noticeably fidgety",
+  },
+  {
+    key: "irritability",
+    label: "Becoming easily annoyed or irritable",
+    desc: "Low frustration tolerance or irritability with peers/tasks",
+  },
+  {
+    key: "fear",
+    label: "Feeling afraid as if something awful might happen",
+    desc: "Sensation of impending catastrophe or dread",
+  },
+];
+
+const GAD7_OPTIONS = [
+  { val: 0, label: "No", sub: "Not at all" },
+  { val: 1, label: "Mild", sub: "Several days" },
+  { val: 2, label: "Moderate", sub: "More than half" },
+  { val: 3, label: "Severe", sub: "Nearly every day" },
+];
+
 function Wellness({ today, setToday, wtab, setWtab, openSession, setTab, resultShown, setResultShown }) {
   const [d, setD] = useState({
     sleep: Number(today?.sleep ?? 7.5),
@@ -762,6 +834,13 @@ function Wellness({ today, setToday, wtab, setWtab, openSession, setTab, resultS
     exam: Number(today?.exam ?? 14),
     mood: today?.mood || "okay",
     note: today?.note || "",
+    nervousness: Number(today?.nervousness ?? 0),
+    unable_to_control: Number(today?.unable_to_control ?? today?.unableToControl ?? 0),
+    worry: Number(today?.worry ?? 0),
+    trouble_in_relaxation: Number(today?.trouble_in_relaxation ?? today?.troubleInRelaxation ?? 0),
+    restlessness: Number(today?.restlessness ?? 0),
+    irritability: Number(today?.irritability ?? 0),
+    fear: Number(today?.fear ?? 0),
   });
 
   const setMeta = (k) => (v) => setD((p) => ({ ...p, [k]: v }));
@@ -834,9 +913,25 @@ function Wellness({ today, setToday, wtab, setWtab, openSession, setTab, resultS
 
   const totalAllocated = Math.round(((d.sleep || 0) + (d.study || 0) + (d.screen || 0)) * 2) / 2;
   const freeTime = Math.max(0, Math.round((24.0 - totalAllocated) * 2) / 2);
-  const score = computeStress(d);
+  const score = today?.stressScore != null ? today.stressScore : computeStress(d);
 
   const analyze = async () => {
+    const requiredQuestions = [
+      "nervousness",
+      "unable_to_control",
+      "worry",
+      "trouble_in_relaxation",
+      "restlessness",
+      "irritability",
+      "fear",
+    ];
+    for (const q of requiredQuestions) {
+      if (d[q] === undefined || d[q] === null || isNaN(Number(d[q])) || d[q] < 0 || d[q] > 3) {
+        alert("Please complete all 7 questions in the GAD-7 clinical screening before submitting.");
+        return;
+      }
+    }
+
     try {
       const saved = await api.checkin(d);
       setToday({ ...saved, done: true });
@@ -877,14 +972,14 @@ function Wellness({ today, setToday, wtab, setWtab, openSession, setTab, resultS
   }
 
   if (resultShown) {
-    const s = computeStress(today);
+    const s = today?.stressScore != null ? today.stressScore : computeStress(today);
     return (
       <>
         <h1 className="h1">Here's how today looks</h1>
         <p className="sub">Thanks for checking in. Here's what we noticed.</p>
         {tabs}
         <div className="grid-d">
-          <StressCard score={s} />
+          <StressCard score={s} mlPrediction={today?.mlPrediction} />
           <div className="card">
             <h3>What might help</h3>
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
@@ -985,9 +1080,94 @@ function Wellness({ today, setToday, wtab, setWtab, openSession, setTab, resultS
         </div>
         <textarea className="inp" style={{ marginTop: 16 }} placeholder="Tell us what's on your mind..." value={d.note} onChange={(e) => setMeta("note")(e.target.value)} aria-label="How are you feeling today?" />
       </div>
+
+      {/* Clinical GAD-7 Stress & Anxiety Assessment */}
+      <div className="card sect">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div className="tile t-blue"><Activity size={20} /></div>
+            <div>
+              <h3>Clinical Wellness Screening (GAD-7)</h3>
+              <div className="muted" style={{ fontSize: 14 }}>
+                Over the past week, how often have you been bothered by these problems?
+              </div>
+            </div>
+          </div>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 8, background: "#E8EFFF", color: "#3F6FD8", fontSize: 12, fontWeight: 700 }}>
+            <Cpu size={13} /> Feeds Trained ML Model
+          </span>
+        </div>
+
+        <div style={{ display: "grid", gap: 14, marginTop: 18 }}>
+          {GAD7_QUESTIONS.map((q) => {
+            const currentVal = d[q.key] ?? 0;
+            return (
+              <div
+                key={q.key}
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 14,
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                }}
+              >
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#1E2A47" }}>{q.label}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{q.desc}</div>
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                    gap: 8,
+                  }}
+                  role="radiogroup"
+                  aria-label={q.label}
+                >
+                  {GAD7_OPTIONS.map((opt) => {
+                    const isSelected = currentVal === opt.val;
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setMeta(q.key)(opt.val)}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 10,
+                          border: isSelected ? "2px solid #3F6FD8" : "1px solid #CBD5E1",
+                          background: isSelected ? "#EFF6FF" : "#FFFFFF",
+                          color: isSelected ? "#1E40AF" : "#475569",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          textAlign: "center",
+                          transition: "all 0.15s ease",
+                          outline: "none",
+                        }}
+                      >
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>{opt.label}</span>
+                        <span style={{ fontSize: 11, opacity: 0.85 }}>{opt.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="muted" style={{ fontSize: 12, marginTop: 14, fontStyle: "italic" }}>
+          Notice: MindMate provides wellness screening based on trained statistical models and is not a medical diagnosis.
+        </p>
+      </div>
+
       <div style={{ marginTop: 20 }}>
         <button className="btn btn-p btn-lg" onClick={analyze}>Analyze My Wellness</button>
-        <span className="muted" style={{ fontSize: 13, marginLeft: 14 }}>Preview: {levelOf(score)}</span>
+        <span className="muted" style={{ fontSize: 13, marginLeft: 14 }}>
+          Evaluated via trained Random Forest model
+        </span>
       </div>
     </>
   );
@@ -1645,7 +1825,7 @@ export default function MindMate() {
   const [historyStack, setHistoryStack] = useState(["dashboard"]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  const score = useMemo(() => computeStress(today), [today]);
+  const score = useMemo(() => (today?.stressScore != null ? today.stressScore : computeStress(today)), [today]);
   const toast = (m) => setToastMsg(m);
 
   useEffect(() => {

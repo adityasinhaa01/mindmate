@@ -74,10 +74,10 @@ const getFallbackReply = (userMessage = "", stressLevel = "Moderate") => {
 
 const computeStressWithAI = async (data) => {
   try {
-    const response = await axios.post(`${FASTAPI_URL}/wellness/compute-stress`, data, { timeout: 6000 });
+    const response = await axios.post(`${FASTAPI_URL}/wellness/compute-stress`, data, { timeout: 7000 });
     return response.data;
   } catch (error) {
-    // Local calculation fallback if FastAPI service is temporarily offline
+    console.error("[FastAPI ML Service Error]", error?.response?.data || error?.message);
     return null;
   }
 };

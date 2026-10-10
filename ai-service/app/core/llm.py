@@ -14,7 +14,7 @@ def get_llm_client_and_model():
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             api_key=gemini_key.strip(),
         )
-        return client, "gemini-1.5-flash"
+        return client, "gemini-3.5-flash-lite"
 
     api_key = os.getenv("AI_API_KEY") or settings.AI_API_KEY
     if (

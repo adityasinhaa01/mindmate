@@ -458,10 +458,6 @@ test-main-branch/
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
-├── DEPLOYMENT_GUIDE.md
-├── DEPLOYMENT_GUIDE.pdf
-├── PROJECT_GUIDE.md
-├── PROJECT_GUIDE.pdf
 ├── fileStructure.txt
 └── README.md
 ```

@@ -49,6 +49,11 @@ Thumbs.db
 *.swp
 *.swo
 
+DEPLOYMENT_GUIDE.md
+DEPLOYMENT_GUIDE.pdf
+PROJECT_GUIDE.md
+PROJECT_GUIDE.pdf
+
 # Dependency lock files
 # Note: For production hosting (Render, Vercel, Railway), package-lock.json
 # is recommended to be committed so the cloud platform can run "npm ci"
